@@ -56,7 +56,7 @@ public class SessionChatHandler implements ChatHandler<SessionPlayerChat> {
             .thenApply(pme -> {
               PlayerChatEvent.ChatResult chatResult = pme.getResult();
               if (!chatResult.isAllowed()) {
-                if (packet.isSigned()) {
+                if (this.server.getConfiguration().isKeyAuthenticationEnabled() && packet.isSigned()) {
                   invalidCancel(logger, player);
                 }
                 return null;
@@ -64,7 +64,7 @@ public class SessionChatHandler implements ChatHandler<SessionPlayerChat> {
 
               if (chatResult.getMessage().map(str -> !str.equals(packet.getMessage()))
                   .orElse(false)) {
-                if (packet.isSigned()) {
+                if (this.server.getConfiguration().isKeyAuthenticationEnabled() && packet.isSigned()) {
                   invalidChange(logger, player);
                   return null;
                 }

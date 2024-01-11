@@ -74,13 +74,17 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
   private @MonotonicNonNull ServerLogin login;
   private byte[] verify = EMPTY_BYTE_ARRAY;
   private LoginState currentState = LoginState.LOGIN_PACKET_EXPECTED;
-  private boolean forceKeyAuthentication;
+  private final boolean keyAuthenticationEnabled;
+  private final boolean forceKeyAuthentication;
 
   InitialLoginSessionHandler(VelocityServer server, MinecraftConnection mcConnection,
       LoginInboundConnection inbound) {
     this.server = Preconditions.checkNotNull(server, "server");
     this.mcConnection = Preconditions.checkNotNull(mcConnection, "mcConnection");
     this.inbound = Preconditions.checkNotNull(inbound, "inbound");
+    this.keyAuthenticationEnabled = System.getProperties().containsKey("auth.enableSecureProfiles")
+            ? Boolean.getBoolean("auth.enableSecureProfiles")
+            : server.getConfiguration().isKeyAuthenticationEnabled();
     this.forceKeyAuthentication = System.getProperties().containsKey("auth.forceSecureProfiles")
         ? Boolean.getBoolean("auth.forceSecureProfiles")
         : server.getConfiguration().isForceKeyAuthentication();
@@ -200,6 +204,12 @@ public class InitialLoginSessionHandler implements MinecraftSessionHandler {
 
       byte[] decryptedSharedSecret = decryptRsa(serverKeyPair, packet.getSharedSecret());
       String serverId = generateServerId(decryptedSharedSecret, serverKeyPair.getPublic());
+
+      if (!keyAuthenticationEnabled) {
+        // Once we've used the key to decrypt the client's data,
+        // we can discard it if key authentication is disabled.
+        inbound.setPlayerKey(null);
+      }
 
       String playerIp = ((InetSocketAddress) mcConnection.getRemoteAddress()).getHostString();
       String url = String.format(MOJANG_HASJOINED_URL,
